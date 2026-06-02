@@ -8,7 +8,9 @@ import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.*
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import java.nio.charset.StandardCharsets
+import java.security.GeneralSecurityException
 import java.security.InvalidKeyException
+import kotlin.text.Charsets
 
 object SecureCrypto {
     private lateinit var aead: Aead
@@ -57,15 +59,22 @@ object SecureCrypto {
     fun encrypt(plainText: String, associatedData: ByteArray? = null): ByteArray {
         ensureInit()
         return aead.encrypt(
-            plainText.toByteArray(StandardCharsets.UTF_8),
+            plainText.toByteArray(Charsets.UTF_8),
             associatedData ?: ByteArray(0)
         )
     }
 
     fun decrypt(cipherText: ByteArray, associatedData: ByteArray? = null): String {
         ensureInit()
-        val pt = aead.decrypt(cipherText, associatedData ?: ByteArray(0))
-        return String(pt, StandardCharsets.UTF_8)
+        if (cipherText.isEmpty()) throw IllegalArgumentException("Ciphertext cannot be empty")
+        
+        return try {
+            val pt = aead.decrypt(cipherText, associatedData ?: ByteArray(0))
+            String(pt, Charsets.UTF_8)
+        } catch (e: GeneralSecurityException) {
+            AppLog.e("Decryption failed", e)
+            throw e
+        }
     }
 
     fun encryptToBase64(plainText: String, associatedData: ByteArray? = null): String {
